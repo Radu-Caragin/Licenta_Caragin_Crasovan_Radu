@@ -23,13 +23,13 @@ import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String TAG = "MainActivity";
-    private static final String DEVICE_ADDRESS = "00:22:09:01:0D:79"; // Adresa MAC a dispozitivului Bluetooth
-    private static final UUID UUID_MY_DEVICE = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+    private static final String TAG = "ProjLicenta";
+    private static final String deviceAddress = "00:22:09:01:0D:79";
+    private static final UUID deviceUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
     private static final int REQUEST_BLUETOOTH_PERMISSIONS = 1;
 
-    private BluetoothAdapter bluetoothAdapter;
     private BluetoothDevice bluetoothDevice;
+    private BluetoothAdapter bluetoothAdapter;
     private BluetoothSocket bluetoothSocket;
     private InputStream inputStream;
     private Thread readThread;
@@ -65,7 +65,7 @@ public class MainActivity extends AppCompatActivity {
                 ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED ||
                 ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
 
-            ActivityCompat.requestPermissions(this, new String[]{
+            ActivityCompat.requestPermissions(this, new String[] {
                     Manifest.permission.BLUETOOTH,
                     Manifest.permission.BLUETOOTH_ADMIN,
                     Manifest.permission.BLUETOOTH_SCAN,
@@ -84,65 +84,50 @@ public class MainActivity extends AppCompatActivity {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 connectToBluetoothDevice();
             } else {
-                Log.e(TAG, "Bluetooth permissions denied");
+                Log.e(TAG, "Permissions denied");
             }
         }
     }
 
     @SuppressLint("MissingPermission")
     private void connectToBluetoothDevice() {
-        bluetoothDevice = bluetoothAdapter.getRemoteDevice(DEVICE_ADDRESS);
+        bluetoothDevice = bluetoothAdapter.getRemoteDevice(deviceAddress);
         try {
-            bluetoothSocket = bluetoothDevice.createRfcommSocketToServiceRecord(UUID_MY_DEVICE);
+            bluetoothSocket = bluetoothDevice.createRfcommSocketToServiceRecord(deviceUUID);
             bluetoothSocket.connect();
             inputStream = bluetoothSocket.getInputStream();
-            startReadingData();
+            readData();
         } catch (IOException e) {
-            Log.e(TAG, "Error while connecting", e);
+            Log.e(TAG, "Error connecting", e);
         }
     }
 
-    private void startReadingData() {
+    private void readData() {
         isReading = true;
-        readThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                final byte[] buffer = new byte[1024];
-                int bufferPosition = 0;
+        readThread = new Thread(() -> {
+            final byte[] buffer = new byte[1024];
+            int bufferPosition = 0;
 
-                while (isReading) {
-                    try {
-                        // Citește un byte la un moment dat
-                        int bytes = inputStream.read(buffer, bufferPosition, 1);
-
-                        if (bytes > 0) {
-                            // Verifică dacă byte-ul citit este un caracter de sfârșit ($)
-                            if (buffer[bufferPosition] == '$') {
-                                final String readMessage = new String(buffer, 0, bufferPosition).trim();
-                                bufferPosition = 0; // Resetează poziția buffer-ului pentru următorul mesaj
-                                handler.post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        textViewData.setText(readMessage);
-                                    }
-                                });
-                                // Așteaptă o secundă înainte de a citi din nou
-                                Thread.sleep(1000);
-                            } else {
-                                bufferPosition++;
-                            }
+            while (isReading) {
+                try {
+                    if (inputStream.read(buffer, bufferPosition, 1) > 0) {
+                        if (buffer[bufferPosition] == '$') {
+                            final String readMessage = new String(buffer, 0, bufferPosition).trim();
+                            bufferPosition = 0;
+                            handler.post(() -> textViewData.setText(readMessage));
+                            Thread.sleep(1000);
+                        } else {
+                            bufferPosition++;
                         }
-                    } catch (IOException | InterruptedException e) {
-                        Log.e(TAG, "Error while reading data", e);
-                        isReading = false;
                     }
+                } catch (IOException | InterruptedException e) {
+                    Log.e(TAG, "Error reading data", e);
+                    isReading = false;
                 }
             }
         });
         readThread.start();
     }
-
-
 
     @Override
     protected void onDestroy() {
@@ -154,7 +139,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             bluetoothSocket.close();
         } catch (IOException e) {
-            Log.e(TAG, "Error while closing socket", e);
+            Log.e(TAG, "Error socket", e);
         }
     }
 }
