@@ -1,0 +1,30 @@
+\chapter{Concluzii}
+\thispagestyle{pagestyle}
+
+\section{Concluzii și perspective de dezvoltare}
+Proiectul implementat de automatizare a casei demonstrează funcționalitatea unui sistem complex format din mai multe subansamble precum subansamblul de: stabilizare a temperaturii, de alarmă de gaze și fum, de deschidere automată a ușii și de iluminat. Acest sistem poate fi monitorizat atât la distanțe medii folosind o aplicație Android ce comunică cu sistemul prin Bluetooth, dar și la distanțe mari, comunicând prin WiFi cu platforma Blynk. Sistemul poate fi monitorizat și local prin intermediul unui afișaj local LCD. Folosind macheta, putem observa un exemplu realist în care ansamblele funcționează simultan. 
+
+Perspectivele de dezvoltare de care dispune proiectul sunt vaste. Se pot adăuga diverși noi senzori în funcție de nevoi și control vocal. Totodată, toate interfețele pot fi îmbunătățite sau chiar este posibil să fie adăugate și unele noi.
+
+\section{Sinteza contribuțiilor}
+
+În acest subcapitol voi prezenta contribuțiile aduse de mine acestui proiect:
+
+\begin{itemize}
+    \item Realizarea arhitecturii sistemului
+    \item Realizarea schemelor de conectare pentru întreg sistemul, dar și pentru fiecare ansamblu în parte
+    \item Realizarea cablajului la nivel de breadboard, apoi la nivel de placă PCB
+    \item Realizarea schemelor bloc hardware și software
+    \item Implementarea software a sistemului pe placa de dezvoltare Arduino Mega
+        \begin{itemize}
+            \item Implementarea ansamblului de setare al temperaturii
+            \item Implementarea alarmei de gaze și fum
+            \item Implementarea ansamblului de deschidere automată a ușii
+            \item Implementarea iluminatului automat
+            \item Conectarea display-ului LCD și al senzorului BMP280 folosind protocolul I2C
+            \item Implementarea comunicării seriale între Arduino Mega, modulul NodeMCU și modulul Bluetooth
+        \end{itemize}
+    \item Implementarea aplicației mobile Android de monitorizarea a sistemului folosind Bluetooth
+    \item Crearea interfeței web și mobile și a device-ului Blynk pentru conectarea pinilor virtuali la modulul NodeMCU
+    \item Realizarea machetei pentru demonstrarea funcționalității sistemului
+\end{itemize}

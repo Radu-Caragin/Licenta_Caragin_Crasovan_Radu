@@ -1,0 +1,417 @@
+\chapter{Implementarea Software pe placa de dezvoltare Arduino Mega}
+\thispagestyle{pagestyle}
+În acest capitol va fi prezentată în detaliu implementarea software pe placa de dezvoltare Arduino Mega. Microcontroller-ul ATmega2560 face parte din seria AVR produsă de Atmel și reprezintă "creierul" întregului sistem. Acesta va comanda întreaga execuție a codului implementat.
+
+Codul sursă rulat de ATmega2560 este scris în limbajul C++, dar cu câteva modificări aduse specific pentru plăcile de dezvoltare Arduino. Mediul de dezvoltare folosit pentru realizarea codului este Arduino IDE\cite{arduino_ide}. Structura codului este formată din două funcții: \texttt{setup()} ce este apelată o singură dată la începutul execuției și \texttt{loop()} care rulează în continuu până la un reset sau o lipsă de alimnetare.
+
+
+\section{Implementarea ansamblului de stabilizare a temperaturii}
+
+Pentru a realiza ansamblul de stabilizare a temperaturii este nevoie de următoarele componente: tastatura 4x4, senzorul DHT11, releu pentru controlul becului și releu pentru controlul ventilatorului.
+
+\subsection{Definirea pinilor și inițializarea componentelor}
+Pentru a realiza implementarea, avem nevoie două biblioteci predefinite pentru tastatură și senzorul de temperatură:
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+#include <DHT.h>;
+#include <Keypad.h>;
+\end{lstlisting}
+\caption{Bibliotecile folosite pentru tastatură și senzorul DHT11\cite{lib_key},\cite{lib_dht}}
+\label{code:bib_key_dht}
+\end{code}
+
+Următorul pas este definirea pinilor la care sunt legate componentele și tipul senzorului DHT deoarece acesta poate fi de două tipuri: DHT11 și DHT 22. Tastatura are un mod propriu de definire a pinilor diferit de celelalte componente datorită bibliotecii folosite. Toate acestea sunt prezentate în Fragmentul \ref{code:def_temp_key_relay}
+
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+#define DHTTYPE DHT11
+#define DHTPIN 5
+#define RELAYPINBEC 11
+#define RELAYPINFAN 7
+
+const byte ROWS = 4;
+const byte COLS = 4;
+
+char hexaKeys[ROWS][COLS] = {
+{'1','2','3','A'},
+{'4','5','6','B'},
+{'7','8','9','C'},
+{'*','0','#','D'}
+};
+
+byte rowPins[ROWS] = {53, 51, 49, 47};
+byte colPins[COLS] = {45, 43, 41, 39};
+Keypad keypad = Keypad(makeKeymap(hexaKeys), rowPins, colPins, ROWS, COLS);
+\end{lstlisting}
+\caption{Definirea pinilor ansamblului de stabilizare a temperaturii}
+\label{code:def_temp_key_relay}
+\end{code}
+
+Din codul prezentat în Fragmentul \ref{code:def_temp_key_relay} se observă modul diferit de definire al pinilor folosiți de tastatură. Constantele de la liniile \textit{(6)} și \textit{(7)} definesc numărul de rânduri și coloane. De la linia \textit{(9)} până la linia \textit{(14)} este declarată o matrice de caractere unde fiecare element reprezintă o tastă de pe tastatură. La liniile \textit{(16)} și \textit{(17)} sunt definiți pinii digitali ai plăcii de dezvoltare folosiți de tastatură. Linia de cod \textit{(18)} creează un obiect Keypad. Aceasta mapează tastatura fizică la codul software prin: \texttt{makeKeymap(hexaKeys)} creează harta de taste utilizând matricea \texttt{hexaKeys}; \texttt{rowPins} specifică pinii pentru rândui si \texttt{colPins} specifică pinii pentru coloane; \texttt{ROWS} și \texttt{COLS} specifică dimensiunea matricii. Astfel, tastatura este inițializată.
+
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+dht.begin();
+pinMode(RELAYPINBEC, OUTPUT);
+pinMode(RELAYPINFAN, OUTPUT);
+\end{lstlisting}
+\caption{Inițializarea senzorului DHT11 și al releelor}
+\label{code:init_dht_relay}
+\end{code}
+
+Codul din Fragmentul \ref{code:init_dht_relay} se execută în partea de \texttt{setup()} a codului. Senzorul este inițializat automat cu autorul bibliotecii aferente, iar pinii de care sunt legate releele sunt puși în modul OUTPUT pentru a le putea controla utilizând semnale.
+
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+ while (!completed) {
+    char key = keypad.getKey();
+    if (key != NO_KEY) {
+      if (key == '#') {
+        temperaturaSetata = inputTemp.toFloat(); 
+        Serial.println("Temperatura setata:");
+        Serial.println(temperaturaSetata);
+        completed = true; 
+      } else if (isdigit(key)) {
+        inputTemp += key;
+        Serial.print("Continuati introducerea temperaturii sau apasati tasta # pentru oprire: ");
+        Serial.println(inputTemp); 
+      }
+    }
+  }
+\end{lstlisting}
+\caption{Setarea temperaturii de prag}
+\label{code:set_temp}
+\end{code}
+
+În Fragmentul \ref{code:set_temp} este prezentat modul în care este setată temperatura de prag. Acesta este executat în partea de \texttt{setup()} deoarece temperatura trebuie introdusă o singură dată la începutul execuției codului.
+
+Cu ajutorul bibliotecii \texttt{Keypad.h} se face citirea tastaturii. Aceasta setează pe rând fiecare rând pe LOW, iar apoi citește starea fiecărui pin de coloană. Dacă o cloană este pe LOW, se detectează în matrice tasta apăsată și este trimisă valoarea acesteia.
+
+Utilizatorul va introduce un număr la tastatură urmat de tasta \# atunci când a terminat de introdus numărul. Acest lucru este realizat cu ajutorul buclei \texttt{while(!completed)} și liniile \textit{(4)} și \textit{(8)} care verifică dacă tasta apăsată este \#. În cazul în care a fost apăsată schimbă valoarea flag-ului \texttt{completed} în \texttt{true} oprind bucla. Dacă a fost apăsată orice altă tastă, valoarea numerică a acesteia este adăugată la stringul \texttt{inputTemp} apoi fiind transformată într-un număr real și stocată în variabila \texttt{tempearturaSetata} conform liniei \textit{(5)}.
+
+\subsection{Logica de funcționare a ansamblului de stabilizare a temperaturii}
+
+Folosind biblioteca menționată anterior (\texttt{DHT.h}), se face citirea senzorului DHT11. Senzorul folosește un singur fir pentru comunicare, iar biblioteca gestionează protocolul de comunicare. Microcontroler-ul trimite un semnal de start către senzor, apoi senzorul răspunde cu un semnal de recunoaștere și încep să transmită valorile înregistrate. Senzorul trimite 40 de biți de date către micrcontroler: 16 biți pentru temperatură (8 pentru partea întreagă, 8 pentru partea fracționară), 16 biți pentru umiditate (8 pentru partea întreagă, 8 pentru partea fracționară) și 8 biți pentru checksum pentru a verifica integritatea datelor.
+
+În fragmentul \ref{code:func_temp} este prezentat modul în care ansamblul funcționează și logica din spatele acestuia.
+
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+if(dht.readTemperature() >= temperaturaSetata){
+  digitalWrite(RELAYPINFAN, HIGH);
+  digitalWrite(RELAYPINBEC, LOW);
+  }
+  else{
+    digitalWrite(RELAYPINFAN, LOW);
+    digitalWrite(RELAYPINBEC, HIGH);
+  }
+\end{lstlisting}
+\caption{Codul pe baza căruia funcționează ansamblul de stabilizare a temperaturii}
+\label{code:func_temp}
+\end{code}
+
+La linia \textit{(1)} din Fragmentul \ref{code:func_temp} se ia decizia dacă va porni becul sau ventilatorul. Funcția \texttt{dht.readTemperature()} returnează valoarea temperaturii în momentul apelului și o compară cu temperatura de prag setată anterior. Dacă temperatura curentă este mai mare ca cea setată se accesează prima ramură a instrucțiunii \texttt{if} și se activează pinul de care este legat releul ventilatorului fiind pus pe \texttt{HIGH}. Altfel, dacă temperatura curentă este mai mică, se intră pe a doua ramură setând pinul releului legat la bec pe \texttt{HIGH}, astfel acesta pornește.
+
+\section{Implementarea ansamblului de alarmă la detectarea gazelor sau a fumului}
+Senzorul de gaze și fum și buzzer-ul pasiv sunt componentele folosite pentru a realiza alarma. La detectarea gazelor periculoase sau a fumului, senzorul activează un semnal către buzzer, iar acesta va emite sunet timp de trei secunde.
+
+\subsection{Definirea pinilor și inițializarea componentelor}
+Senzorul MQ2 are nevoie de o bibliotecă predefinită, iar buzzer-ul funcționează fără o bibliotecă deoarece funcțiile sale sunt implementate în limbajul specific Arduino. Biblioteca folosită de senzor este \texttt{MQ2.h}\cite{lib_mq2}. Aceasta calibrează senzorul în aer curat pentru a stabili o referință, măsurând rezistența internă. Senzorul citește mai multe valori și face o medie pentru a evita zgomotul și a ridica acuratețea.
+
+Următorul pas este definirea pinilor. Avem nevoie de un pin analogic pentru senzor și de un pin digital pentru buzzer. Conform liniilor \textit{(1)} și \textit{(2)} din Fragmentul \ref{code:init_mq2_buzzer} senzorul este legat la pinul analogic A0 al plăcii, iar buzzer-ul la pinul digital 29. La linia \textit{(4)} este inițializat un obiect de tip MQ2 ce este asociat pinului definit anterior și reprezintă senzorul în sine. Funcția \texttt{mq2.begin()} apelată la linia \textit{(6)} inițializează fizic senzorul și îl calibrează pentru a oferi citiri stabile și corecte.
+
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+#define MQ2PIN A0
+#define BUZZERPIN 29
+
+MQ2 mq2(MQ2PIN);
+
+mq2.begin();
+\end{lstlisting}
+\caption{Declararea pinilor pentru senzorul MQ2 și buzzer și inițializarea senzorului}
+\label{code:init_mq2_buzzer}
+\end{code}
+
+\subsection{Logica de funcționare a ansamblului de alarmă}
+La detecția gazelor sau a fumului, buzzer-ul trebuie să se activeze pentru trei secunde. În Fragmentul \ref{code:func_mq2_buzzer} este prezentată implementarea acestei funcționalități. La linia \textit{(1)} este verificat dacă valoarea citită de senzor pentru dioxid de carbon, gaz petrolier lichefiat sau fum este mai mare de prag. În cazul în care condiția este adevărată, este înregistrat timpul curent folosind funcția \texttt{millis()} și este activat buzzer-ul conform liniei \textit{(3)} la o frecvență de 1000 Hz. Flagul \texttt{buzzer\_on\_off} este activat și semnalează ca buzzer-ul este activ. Apoi, la linia \textit{(7)} este verificat dacă au trecut trei secunde de la activarea buzzerului. În cazul în care au trecut buzzer-ul este oprit folosind \texttt{noTone(BUZZERPIN)}.
+
+Funcția \texttt{millis()} este o funcție integrată în Arduino și cronometrează timpul trecut de la rularea acelei linii. Astfel, cu ajutorul acestei funcții evităm folosirea funcției \texttt{delay()} ce ar crea o întârziere în întreg sistemul și nu doar în cadrul acestui ansamblu.
+
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+  if(mq2.readCO() || mq2.readLPG() || mq2.readSmoke() > 100){
+    buzzerStart = millis();
+    tone(BUZZERPIN, 1000); 
+    buzzer_on_off = true;
+  }
+  else
+    if(buzzer_on_off &&(millis() - buzzerStart >= intervalBuzzer)){
+      noTone(BUZZERPIN);
+      buzzer_on_off = false;
+  }
+}
+\end{lstlisting}
+\caption{Codul pe baza căruia funcționează ansamblul de alarmă}
+\label{code:func_mq2_buzzer}
+\end{code}
+
+\section{Implementarea senzorului de presiune barometrică și a display-ului LCD cu ajutorul protocolului I2C}
+Atât senzorul BMP280, cât și LCD-ul folosesc protocolul I2C pentru a comunica cu placa de dezvoltare Arduino Mega. Astfel, avem nevoie de adresele lor de memorie pentru a realiza conexiunea.
+
+\subsection{Inițtializarea componentelor}
+LCD-ul utilizează biblioteca \texttt{LiquidCrystal\_I2C.h}\cite{lib_lcd}, iar senzorul folosește biblioteca \texttt{Adafruit\_BMP280.h}\cite{lib_bmp280}. Ambele componente necesită biblioteca \texttt{Wire.h}\cite{lib_wire} pentru a comunica prin protocolul I2C. Biblioteca pentru display realizează conexiunea dintre modulul I2C și LCD-ul propoiu zis. Modulul interpretează comenzile și le transformă într-un format accesibil pentru display. Biblioteca senzorului ajută la transformarea datelor înregistrate de acesta folosind formule de calibrare. Biblioteca \texttt{Wire.h} este folosită pentru a realiza comunicarea. Aceasta inițializează transmisia către adresa specificată, apoi folosind un buffer transmite datele.
+
+
+Următorul pas este să inițializăm componentele cu adresele la care se află acestea.
+
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+LiquidCrystal_I2C lcd(0x27,16,2);
+Adafruit_BMP280 bmp;
+
+void setup(){
+lcd.init();
+lcd.clear();
+lcd.backlight();
+
+bmp.begin(0x76) ;
+}
+\end{lstlisting}
+\caption{Inițializarea LCD-ului și a senzorului BMP280}
+\label{code:init_lcd_bmp}
+\end{code}
+
+În Fragmentul \ref{code:init_lcd_bmp} la linia \textit{(1)} este inițializat un obiect LCD la adresa 0x27 din memorie, 16 reprezintă numărul de caracter de pe un rănd, iar 2 numărul de rânduri. Senzorul BMP 280 se află la adresa de memorie 0x76 conform liniei \textit{(9)}. Liniile \textit{(5)},\textit{(6)} și \textit{(7)} au ca scop inițializarea fizică a display-ului acestea golind ecranul de orice caracter și setând lumina de fundal.
+
+\subsection{Codul pentru afișarea datelor pe display-ul LCD}
+Display-ul LCD afițează datele primite de la senzorul de temperatură și umiditate (DHT11), senzorul de presiune atmosferică și altitudine (BMP280) și senzor de gaze și fum (MQ2). Deoarece dimensiunea datelor este mare și LCD-ul poate afișa doar 32 de caractere simultan, acesta trece prin trei stări separate: prima în care afișează datele de la DHT11, a doua în care afișează datele de la BMP280 și a treia în care afișează datele de la MQ2. Aceste stări sunt executate ciclic.
+
+În Fragmentul \ref{code:func_lcd} sunt prezentate stările prin care trece LCD-ul. Pentru început, la linia \textit{(3)} se verifică cu ajutorul funcției \texttt{millis()} dacă au trecut cele 3 secunde pentru a schimba afișajul. Ecranul trebuie golit înainte de fiecare afișaj pentru a nu exista disfuncții. Apoi, fiecare stare apelează o funcție ce afișează pe display, datele citie de la senzorul aferent stării. Starea 0 este pentru senzorul de temperatură și umiditate (\textit{(7),(8)}), starea 1 este pentru senzorul de gaze și fum (\textit{(9),(10}) și starea 3 este pentru senzorul de presiune și altitudine (\textit{(11),(12)}). Apoi, variabilei \texttt{displayState} îi este atribuită o nouă stare folosind clasa de resturi a numărului trei, adică zero, unu și doi, asigurând ciclicitatea execuției formând o buclă.
+
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+const long updateInterval = 5000;
+
+if (millis() - lastDisplayLCD >= intervalLCD){
+    lastDisplayLCD = millis(); 
+    lcd.clear(); 
+
+    if (displayState == 0){
+      displayDHTReadings();
+    }else if (displayState == 1){
+      displayMQ2Readings();
+    }else if (displayState == 2){
+      displayBMPReadings();
+    }
+
+    displayState = (displayState + 1) % 3; //ca sa trecem circular prin cele trei stari pt lcd
+  }
+\end{lstlisting}
+\caption{Codul pentru afișarea ciclică a datelor pe LCD }
+\label{code:func_lcd}
+\end{code}
+
+Cele trei funcții \texttt{displayDHTReadings()}, \texttt{displayMQ2Readings()} și \texttt{displayBMPReadings()} sunt similare, astfel în Fragmentul \ref{code:func_bmp_disp} este prezentată doar funcția \texttt{displayBMPReadings()}.
+
+Funcția este de tip \texttt{void} deoarece nu trebuie să returneze nimic, ci doar să printeze pe LCD. În variabilele \texttt{pressure} și \texttt{altitude} sunt stocate valorile citite de către senzor cu ajutorul funcțiilor predefinite oferite de bibliotecă. Apoi, pe primul rând al display-ului începând cu poziția 0 este afișată valoarea presiunii (liniile \textit{(5)-(8)}). La linia \textit{(10)} se trece la cel de-al doilea rând al display-ului la poziția 0 pentru a afișa în mod similar și valoarea altitudinii.
+
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+void displayBMPReadings() {
+float pressure = bmp.readPressure() * 0.000145038; //transformare Pa -> psi
+float altitude = bmp.readAltitude(1020);
+
+lcd.setCursor(0, 0);
+lcd.print("Pres: ");
+lcd.print(pressure);
+lcd.print(" PSI");
+
+lcd.setCursor(0, 1);
+lcd.print("Alt: ");
+lcd.print(altitude);
+lcd.print(" m");
+}
+\end{lstlisting}
+\caption{Afișarea datelor primite de la BMP280}
+\label{code:func_bmp_disp}
+\end{code}
+
+\section{Implementarea ansamblului de deschidere automată a ușii}
+Acest ansamblu este format din senzorul ultrasonic HC-SR04 și micro servomotorul SG90. La detecția unei persoane în proximitatea sa, senzorul comandă un semnal către servomotor pentru a acționa ușa de care este legat printr-o mișcare de 90 de grade. Ușa rămâne deschisă timp de 10 secunde, iar dacă după acest interval nu mai este detectată prezența unei persoane, acest execută o altă mișcare de 90 de grade revenind la poziția inițială.
+
+\subsection{Definirea pinilor și inițializarea componentelor}
+În Fragmentul \ref{code:init_servo_hcsr} putem observa că senzorul are nevoie de doi pinii digitali pentru a funcționa: ECHO și TRIG. Sunt folosiți pentru aceasta pinii digitali 12 și 13. În \texttt{setup()} pinul TRIG este setat ca și ieșire (\texttt{OUTPUT}) pentru că acesta emite o undă sonoră, iar dacă aceasta se lovește de un obiect este reflectată și recepționată de pinul ECHO, motiv pentru care este setat pe intrare (\texttt{INPUT}).
+
+Servomotrul are nevoie de biblioteca \texttt{Servo.h} pentru a funcționa \cite{lib_servo}. Este creat un obiect de tip Servo, iar în \texttt{setup()} îi este atașat pinul digital 9 ce dispune de PWM. Biblioteca ajustează lățimea impulsului PWM și modifică poziția servomotorului pe baza duratei impulsului.
+
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+#include <Servo.h>
+
+#define TRIGPIN 12
+#define ECHOPIN 13
+#define SERVOPIN 9
+
+Servo myServo;
+
+void setup(){
+pinMode(TRIGPIN, OUTPUT);
+pinMode(ECHOPIN, INPUT);
+
+myServo.attach(SERVOPIN);
+}
+\end{lstlisting}
+\caption{Definirea pinilor și inițializarea servomotorului și senzorului ultrasonic}
+\label{code:init_servo_hcsr}
+\end{code}
+
+\subsection{Logica de funcționare a ansamblului de deschidere automată a ușii}
+Funcția \texttt{pulseIn(ECHOPIN, HIGH)} măsoară durata în microsecunde în care semnalul pe pinul ECHO este pe \texttt{HIGH}, indicând timpul necesar pentru ca undele sonore să parcurgă drumul până la un obiect și înapoi. Pentru a calcula distanța avem nevoie de durata de timp calculată anterior și viteza sunetului în aer (0.0343 cm/microsecundă). Astfel, folosind formula \ref{eq:distance} putem calcula distanța la care se află obiectul.
+
+La linia \textit{(4)} se verifică dacă senzorul detectează un obiect la o distantă de maxim 10 cm și folosind funcția \texttt{millis()} deschide ușa mutând servomotorul la 90 de grade timp de 10 secunde. Apoi după 10 secunde, ușa rămâne deschisă dacă senzorul detectează o prezență, dacă nu, revine la poziția inițială de 0 grade.
+
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+  duration = pulseIn(ECHOPIN, HIGH);
+  distance = (duration * 0.0343) / 2; // 0.0343 cm/micros (343 m/s) = viteza sunetului in aer
+  
+  if (distance < 10 && millis() - lastServoMove >= intervalUltra){ 
+    myServo.write(90);
+    lastServoMove = millis(); 
+  }
+
+  if (millis() - lastServoMove < intervalUltra){
+    myServo.write(90); 
+  }
+  else{
+    myServo.write(0);
+  }
+\end{lstlisting}
+\caption{Mișcarea servomotorului comandată de senzorul ultrasonic}
+\label{code:func_servo_hcsr}
+\end{code}
+
+\begin{equation}
+\label{eq:distance}
+\text{Distanța} = \frac{\text{Viteza sunetului} \times \text{Durata de zbor a undei}}{2}
+\end{equation}
+
+\section{Implementarea Senzorului PIR și al led-ului aferent}
+\label{sec:senzor_pir_led}
+Acest ansamblu are ca scop aprinderea unui led în momentul în care senzorul PIR detectează mișcare.
+
+Conform Fragmentului \ref{code:init_pir_led}, senzorul trimite către pinul digital 4 valoarea 1 sau 0, fiind pus pe modul intrare. Pinul aferent led-ului este setat în modul ieșire deoarece acesta trimite un semnal care aprinde led-ul. Astfel, se realizează comanda dintre senzor și led.
+
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+#define PIRPIN 4
+#define LEDPIRPIN 26
+
+setup(){
+pinMode(PIRPIN, INPUT);
+pinMode(LEDPIRPIN, OUTPUT);
+}
+\end{lstlisting}
+\caption{Definirea pinilor și inițializarea senzorului și a led-ului}
+\label{code:init_pir_led}
+\end{code}
+
+Logica de funcționare este simplă deoarece senzorul PIR dispune de setarea timpului în care semnalul trimis are valoare 1 și distanța la care acesta acționează folosind două potențiometre atașate pe senzor. Cât timp senzorul trimite valoarea 1, adică detectează mișcare, led-ul este comandat să se aprindă. Când senzorul nu detectează mișcare și comută pe valoarea 0, led-ul se stinge. Acest principiu poate fi urmărit în Fragmentul \ref{code:func_pir_led}
+
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+if(digitalRead(PIRPIN)==1){
+    digitalWrite(LEDPIRPIN,HIGH);
+  }
+  else
+  {
+    digitalWrite(LEDPIRPIN,LOW);
+  }
+\end{lstlisting}
+\caption{Comandarea led-ului cu ajutorul senzorului PIR}
+\label{code:func_pir_led}
+\end{code}
+
+\section{Implementarea modulului cu fotorezistor și al led-ului aferent}
+Rolul acestui ansamblu este de a controla un led în funcție de nivelul de lumină detectat de fotorezistor. Astfel, dacă nivelul de lumină este scăzut modulul comandă led-ul să fie aprins.
+
+Modulul are nevoie de un pin digital la care să trimită date, iar led-ul de un pin digital prin care să fie trimis un semnal care să îl aprindă. În Fragmentul \ref{code:init_lum_led} se observă că pentru modul se folosește pinul digital 8 setat pe modul intrare, iar pentru led pinul 24 setat pe ieșire.
+
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+#define SLUMINAPIN 8
+#define LEDLUMINAPIN 24
+
+setup(){
+pinMode(SLUMINAPIN, INPUT);
+pinMode(LEDLUMINAPIN, OUTPUT);
+}
+\end{lstlisting}
+\caption{Comandarea led-ului cu ajutorul senzorului PIR}
+\label{code:init_lum_led}
+\end{code}
+
+Logica de funcționare este similară cu cea prezentată în subcapitolul \ref{sec:senzor_pir_led}. Modulul dispune de un potențiometru ce permite ajustarea sensibilității la lumină. Diferența majoră este că led-ul se activează atunci când modulul emite valoarea 1, adică fotorezistorul nu detectează lumină. Modulul trimite valoarea 0 când nivelul luminii a trecut de pragul setat cu ajutorul potențiometrului și astfel led-ul se stinge. Acest mod de funcționare este prezentat în Fragmentul \ref{code:func_lum_led}.
+
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+if(digitalRead(SLUMINAPIN) == 0){
+digitalWrite(LEDLUMINAPIN,LOW);
+}
+else {
+digitalWrite(LEDLUMINAPIN,HIGH);
+}
+\end{lstlisting}
+\caption{Comandarea led-ului cu ajutorul modulului cu fotorezistor}
+\label{code:func_lum_led}
+\end{code}
+
+\section{Implementarea comunicării seriale între Arduino Mega, NodeMCU și modulul Bluetooth}
+
+Placa de dezvoltare Arduino Mega comunică serial atât cu modulul WiFi NodeMCU, cât și cu modulul Bluetooth HC-05. Fiecare comunicare se face individual printr-un alt canal.
+
+Comunicarea dintre Arduino Mega și modulul HC-05 se realizează folosind interfața UART 0 fiind folosiți pinii 0 (RX0) și 1 (TX0) ai plăcii. Acești pini nu trebuie declarați în cod deoarece este suficientă doar legătura hardware. Comunicarea trebuie inițializată folosind funcția \texttt{Serial.begin(9600)} ce este implementată în limbajul folosit de Arduino, nefiind necesară o bibliotecă specifică.
+
+Pentru comunicarea dintre Arduino Mega și modulul NodeMCU se folosește interfața UART 3. Astfel la nivel de hardware s-a realizat o conexiune între pinii 14 (TX3) și 15 (RX3) la pinii dedicați ai modulului. În mod echivalent cu paragraful anterior și această conexiune trebuie inițializată prin apelul funcției \texttt{Serial3.begin(9600)} în partea de \texttt{setup()}.
+
+Arduino Mega trimite către modulul Bluetooth un șir de caractere format din citirile tuturor senzorilor. Astfel, șirurile de caractere returnate de funcțiile \texttt{readDHTSensor()}, \texttt{readMQ2Sensor()}, și \texttt{readBMPSensor()} sunt concatenate în String-ul \texttt{dataStringBt} fiind separate de caracterul new line \texttt{\textbackslash n} pentru vizibilitate. Apoi, pentru a trimite efectiv datele către modul, se apelează funcția \texttt{Serial.println()} care are ca argument șirurl de caractere \texttt{dataStringBt} pe care dorim sa îl trimitem. Caracterul \texttt{\$} este folosit pentru a semnala sfârșitul șirului.
+
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+String dataStringBt = readDHTSensor() + "\n" + readMQ2Sensor() + "\n" + readBMPSensor() + "$";
+Serial.println(dataStringBt);
+\end{lstlisting}
+\caption{Trimiterea serială a datelor către modulul Bluetooth HC-05}
+\label{code:func_uart_bt}
+\end{code}
+
+Cele trei funcții de citire a datelor prezente în Fragmentul \ref{code:func_uart_bt} funcționează în mod similar. Acestea sunt de tip \texttt{String} și citesc datele de la senzori și le transformă din numere reale în șiruri de caractere. În Fragmentul \ref{code:func_read_dht} este prezentată funcția \texttt{readDHTSensor()} care citește datele de la senzorul DHT11 și returnează datele sub formă de șir de caractere. În mod asemănător sunt tratate și funcțiile \texttt{readMQ2Sensor()} și \texttt{readBMPSensor()}.
+
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+String readDHTSensor() {
+float humidity = dht.readHumidity();
+float temperature = dht.readTemperature();
+
+if (isnan(humidity) || isnan(temperature)) {
+return "Nu se poate citi DHT11";
+}
+
+return "Temperature: " + String(temperature) + "\nHumidity: " + String(humidity);
+}
+\end{lstlisting}
+\caption{Funcția de citire a datelor de la senzorul DHT11 și transformarea acestora în șiruri de caractere}
+\label{code:func_read_dht}
+\end{code}
+
+Datele trimise către modulul NodeMCU sunt reprezentate tot de citirile senzorilor, doar că în acest caz fiecare valoare este transformată în șir de caractere individual și este separată de un spațiu pentru a permite modului o decodare mai facilă.
+
+\begin{code}[H]
+\begin{lstlisting}[language=C++]
+String data_esp= String(dht.readHumidity())+" "+String(dht.readTemperature())+" "+String(mq2.readCO()*(5/1023.0))+" "+String(mq2.readLPG()*(5/1023.0))+" "+String(mq2.readSmoke()*(5/1023.0))+" "+String(bmp.readAltitude(1020))+" "+String(bmp.readPressure()* 0.000145038);
+Serial3.println(data_esp);
+\end{lstlisting}
+\caption{Trimiterea serială a datelor către modulul NodeMCU}
+\label{code:func_uart_esp}
+\end{code}

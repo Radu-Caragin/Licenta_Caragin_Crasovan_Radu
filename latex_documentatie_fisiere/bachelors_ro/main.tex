@@ -1,0 +1,68 @@
+\documentclass[12pt, romanian, a4paper]{report}
+\usepackage[main=romanian, english]{babel}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{geometry}
+\usepackage{abstract}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{listings}
+\usepackage{csquotes}
+\usepackage{xcolor}
+\usepackage{xurl}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{pdfpages}
+\usepackage{nimbusmono}
+\usepackage{nimbussans}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{cleveref}
+
+
+%generates filler text
+\usepackage{lipsum}
+
+\usepackage[style=ieee,backend=bibtex,language=english,autolang=other, sorting=none]{biblatex}
+
+\addbibresource{bibliography.bib}
+
+\input{customs}
+\input{components/Format}
+\input{components/Styles}
+
+\begin{document}
+\pagestyle{pagestyle}
+\include{chapters/1-Title}
+\include{chapters/2-AbstractRO}
+\include{chapters/3-AbstractEN}
+\tableofcontents
+\listoffigures
+\vspace{24pt}
+\begingroup
+	\let\clearpage\relax
+	\listoftables
+	\vspace{24pt}
+	\listof{code}{Listă de fragmente}
+\endgroup
+\include{chapters/4-Introduction}
+\include{chapters/5-ConsideratiiTeoreticeSiPractice}
+\include{chapters/6-Fundamente_fiabilitate_redundanta_mentenabilitate}
+\include{chapters/7-Arhitectura_Hardware}
+\include{bachelors_ro/chapters/8-Implementarea_hw}
+\include{bachelors_ro/chapters/9-Arhitectura_Software_Arduino}
+\include{bachelors_ro/chapters/10-Implementare_arduino}
+\include{bachelors_ro/chapters/11-Implementare_soft_esp_blynk}
+\include{bachelors_ro/chapters/12-Implementarea_soft_mobile}
+\include{bachelors_ro/chapters/13-Rezultate_experimentale}
+\include{bachelors_ro/chapters/14-Concluzii}
+% Look for building the .bib file on Overleaf documentation
+\printbibliography[heading=bibnumbered]
+
+\includepdf[pages={1}]{declaratie_autenticitate_radu.pdf}
+
+\end{document}

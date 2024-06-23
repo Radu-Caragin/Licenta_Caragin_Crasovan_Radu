@@ -1,0 +1,73 @@
+% set document margins
+\geometry{
+ left=20mm,
+ right=20mm,
+ top=25mm,
+ bottom=20mm,
+ headheight=21mm,
+ headsep=4mm
+ }
+ 
+ % set Nimbus Sans as default font - it is similar to Arial and Helvetica
+ % Arial is proprietary and it doesn't work with diacritics
+\renewcommand*\familydefault{\sfdefault}
+\linespread{1.15} 
+\setlength{\parindent}{1.5cm}
+
+% Link border style
+\hypersetup{
+    pdfborderstyle={/S/U/W 1}, % underline links instead of boxes
+    linkbordercolor=red,       % color of internal links
+    citebordercolor=green,     % color of links to bibliography
+    filebordercolor=orange,   % color of file links
+    urlbordercolor=blue        % color of external links
+}
+
+\lstset{
+	numbers=left, 
+	numberstyle=\tiny, 
+	numbersep=5pt,
+	belowcaptionskip=1\baselineskip,
+	breaklines=true,
+	frame=l,
+	xleftmargin=0.1\textwidth,
+	showstringspaces=false,
+	basicstyle=\footnotesize\ttfamily,
+	keywordstyle=\bfseries\color{green!40!black},
+	commentstyle=\itshape\color{purple!40!black},
+	identifierstyle=\color{blue},
+	stringstyle=\color{orange}
+}
+
+% Disable hyphenation
+\pretolerance=10000
+\tolerance=2000 
+\emergencystretch=10pt
+
+%\floatstyle{}
+\newfloat{code}{h}{loc}[chapter]
+
+% Set caption names
+\setlocalecaption{romanian}{figure}{Figura}
+\setlocalecaption{romanian}{table}{Tabelul}
+%\renewcommand{\lstlistingname}{Fragmentul}
+\floatname{code}{Fragmentul}
+
+%\renewcommand{\thelisting}{\thechapter.\arabic{listing}}
+\setlength{\intextsep }{12pt plus 1pt minus 1pt} 
+
+% Set citation names
+\crefname{code}{Fragmentul}{Fragmentul}
+\crefname{figure}{Figura}{Figura}
+\crefname{table}{Tabelul}{Tabelul}
+\crefname{equation}{}{}
+\crefname{section}{Secțiunea}{Secțiunea}
+\crefname{chapter}{Capitolul}{Capitolul}
+%\renewcommand*{\lstlistlistingname}{Listă de fragmente}
+
+% Make floats centered
+\captionsetup{width=0.6\textwidth}
+
+\makeatletter
+\g@addto@macro\@floatboxreset\centering
+\makeatother
